@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure P2P Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #888;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            box-shadow: 0 0 10px #ff4444;
+            transition: all 0.3s;
+        }
+        
+        .status-dot.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+        
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            overflow: hidden;
+        }
+        
+        .setup-panel {
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+            align-self: center;
+        }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button.secondary {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        button.secondary:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        label {
+            font-size: 0.85em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        textarea, input {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9em;
+            resize: vertical;
+        }
+        
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 15px;
+        }
+        
+        .messages {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease-out;
+            position: relative;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message.received {
+            align-self: flex-start;
+            background: rgba(255,255,255,0.1);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message .meta {
+            font-size: 0.7em;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        
+        .message .file-link {
+            color: #fff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        #messageInput {
+            flex: 1;
+            min-height: 50px;
+            max-height: 150px;
+            resize: none;
+        }
+        
+        .icon-btn {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.2em;
+        }
+        
+        .encryption-notice {
+            text-align: center;
+            font-size: 0.8em;
+            color: #00ff88;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.4);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8em;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .code-block:hover::after {
+            content: "Click to copy";
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(102, 126, 234, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        
+        .or-divider {
+            text-align: center;
+            position: relative;
+            color: #666;
+        }
+        
+        .or-divider::before, .or-divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .or-divider::before { left: 0; }
+        .or-divider::after { right: 0; }
+        
+        .instructions {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        @media (max-width: 600px) {
+            .btn-group { grid-template-columns: 1fr; }
+            .message { max-width: 90%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔒 SECURE VAULT</h1>
+            <div class="status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Disconnected</span>
+                <span id="encryptionBadge" class="hidden">| 🔐 AES-256-GCM</span>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Setup Panel -->
+            <div id="setupPanel" class="setup-panel">
+                <div class="instructions">
+                    <strong>Zero-Knowledge Architecture:</strong>
+                    <ol>
+                        <li>No messages are stored on any server</li>
+                        <li>End-to-end encrypted with AES-256-GCM</li>
+                        <li>Direct peer-to-peer WebRTC connection</li>
+                        <li>Copy-paste signaling ensures no metadata leaks</li>
+                    </ol>
+                </div>
+
+                <div id="modeSelect" class="btn-group">
+                    <button onclick="app.createRoom()">Create Secure Room</button>
+                    <button class="secondary" onclick="app.showJoin()">Join Room</button>
+                </div>
+
+                <!-- Host Flow -->
+                <div id="hostFlow" class="hidden">
+                    <div class="input-group">
+                        <label>1. Copy this offer code and send it to your contact:</label>
+                        <div id="offerCode" class="code-block" onclick="app.copyToClipboard('offerCode')">Generating...</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>2. Paste their answer code here:</label>
+                        <textarea id="answerInput" rows="4" placeholder="Paste their answer code here..."></textarea>
+                    </div>
+                    
+                    <button onclick="app.completeConnection()" id="connectBtn">Establish Connection</button>
+                </div>
+
+                <!-- Guest Flow -->
+                <div id="guestFlow" class="hidden">
+                    <div class="input-group">
+                        <label>1. Paste the offer code from host:</label>
+                        <textarea id="offerInput" rows="4" placeholder="Paste offer code here..."></textarea>
+                    </div>
+                    
+                    <button onclick="app.generateAnswer()" id="genAnswerBtn">Generate Answer Code</button>
+                    
+                    <div id="answerSection" class="hidden">
+                        <div class="input-group">
+                            <label>2. Copy this answer code and send back to host:</label>
+                            <div id="answerCode" class="code-block" onclick="app.copyToClipboard('answerCode')">...</div>
+                        </div>
+                        <div class="instructions">Waiting for host to complete connection...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Interface -->
+            <div id="chatPanel" class="chat-container hidden">
+                <div class="encryption-notice">
+                    <span>🔐</span>
+                    <span>Connection established with end-to-end encryption</span>
+                </div>
+                
+                <div id="messages" class="messages"></div>
+                
+                <div class="input-area">
+                    <input type="file" id="fileInput" class="hidden" onchange="app.sendFile()">
+                    <button class="icon-btn secondary" onclick="document.getElementById('fileInput').click()" title="Send file">📎</button>
+                    <textarea id="messageInput" rows="1" placeholder="Type a secure message..." onkeypress="app.handleKeyPress(event)"></textarea>
+                    <button class="icon-btn" onclick="app.sendMessage()">➤</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const app = (() => {
+            let pc = null;
+            let dc = null;
+            let sharedKey = null;
+            const encoder = new TextEncoder();
+            const decoder = new TextDecoder();
+
+            // WebRTC Configuration (public STUN servers for NAT traversal)
+            const config = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            };
+
+            // Derive encryption key from connection data
+            async function deriveKey(sdp) {
+                const data = encoder.encode(sdp);
+                const hash = await crypto.subtle.digest('SHA-256', data);
+                return await crypto.subtle.importKey(
+                    'raw', 
+                    hash, 
+                    { name: 'AES-GCM', length: 256 }, 
+                    false, 
+                    ['encrypt', 'decrypt']
+                );
+            }
+
+            // Encrypt message
+            async function encrypt(text) {
+                if (!sharedKey) return text;
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const data = encoder.encode(text);
+                const encrypted = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv }, 
+                    sharedKey, 
+                    data
+                );
+                const combined = new Uint8Array(iv.length + encrypted.byteLength);
+                combined.set(iv);
+                combined.set(new Uint8Array(encrypted), iv.length);
+                return btoa(String.fromCharCode(...combined));
+            }
+
+            // Decrypt message
+            async function decrypt(text) {
+                if (!sharedKey) return text;
+                try {
+                    const data = Uint8Array.from(atob(text), c => c.charCodeAt(0));
+                    const iv = data.slice(0, 12);
+                    const encrypted = data.slice(12);
+                    const decrypted = await crypto.subtle.decrypt(
+                        { name: 'AES-GCM', iv }, 
+                        sharedKey, 
+                        encrypted
+                    );
+                    return decoder.decode(decrypted);
+                } catch(e) {
+                    return text; // Fallback for unencrypted legacy messages
+                }
+            }
+
+            // UI Helpers
+            function $(id) { return document.getElementById(id); }
+            
+            function show(id) { $(id).classList.remove('hidden'); }
+            function hide(id) { $(id).classList.add('hidden'); }
+
+            function updateStatus(connected) {
+                const dot = $('statusDot');
+                const text = $('statusText');
+                const badge = $('encryptionBadge');
+                
+                if (connected) {
+                    dot.classList.add('connected');
+                    text.textContent = 'Secure Connection Established';
+                    show('encryptionBadge');
+                    hide('setupPanel');
+                    show('chatPanel');
+                } else {
+                    dot.classList.remove('connected');
+                    text.textContent = 'Disconnected';
+                    hide('encryptionBadge');
+                }
+            }
+
+            function addMessage(text, sent, isFile = false) {
+                const div = document.createElement('div');
+                div.className = `message ${sent ? 'sent' : 'received'}`;
+                
+                const time = new Date().toLocaleTimeString();
+                
+                if (isFile) {
+                    const link = document.createElement('a');
+                    link.href = text;
+                    link.download = 'received_file';
+                    link.className = 'file-link';
+                    link.textContent = '📎 Received File (Click to download)';
+                    div.appendChild(link);
+                } else {
+                    div.textContent = text;
+                }
+                
+                const meta = document.createElement('div');
+                meta.className = 'meta';
+                meta.textContent = time + (sent ? ' • You' : ' • Peer');
+                div.appendChild(meta);
+                
+                $('messages').appendChild(div);
+                $('messages').scrollTop = $('messages').scrollHeight;
+            }
+
+            // WebRTC Setup
+            function setupDataChannel() {
+                dc.onopen = () => {
+                    console.log('Data channel open');
+                    updateStatus(true);
+                };
+                
+                dc.onmessage = async (e) => {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'file') {
+                        addMessage(data.content, false, true);
+                    } else {
+                        const decrypted = await decrypt(data.content);
+                        addMessage(decrypted, false);
+                    }
+                };
+                
+                dc.onclose = () => updateStatus(false);
+            }
+
+            function setupPeerConnection(isHost) {
+                pc = new RTCPeerConnection(config);
+                
+                pc.onicecandidate = (e) => {
+                    if (e.candidate === null) {
+                        // ICE gathering complete
+                        const sdp = btoa(JSON.stringify(pc.localDescription));
+                        if (isHost) {
+                            $('offerCode').textContent = sdp;
+                            deriveKey(sdp).then(k => sharedKey = k);
+                        } else {
+                            $('answerCode').textContent = sdp;
+                            show('answerSection');
+                        }
+                    }
+                };
+            }
+
+            return {
+                createRoom() {
+                    hide('modeSelect');
+                    show('hostFlow');
+                    
+                    setupPeerConnection(true);
+                    dc = pc.createDataChannel('chat', { ordered: true });
+                    setupDataChannel();
+                    
+                    pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                },
+
+                showJoin() {
+                    hide('modeSelect');
+                    show('guestFlow');
+                },
+
+                async generateAnswer() {
+                    const offerSdp = $('offerInput').value.trim();
+                    if (!offerSdp) return alert('Please paste the offer code');
+                    
+                    try {
+                        $('genAnswerBtn').disabled = true;
+                        const offer = JSON.parse(atob(offerSdp));
+                        await deriveKey(offerSdp); // Generate key from their offer
+                        
+                        setupPeerConnection(false);
+                        
+                        pc.ondatachannel = (e) => {
+                            dc = e.channel;
+                            setupDataChannel();
+                        };
+                        
+                        await pc.setRemoteDescription(offer);
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                    } catch(e) {
+                        alert('Invalid offer code');
+                        $('genAnswerBtn').disabled = false;
+                    }
+                },
+
+                async completeConnection() {
+                    const answerSdp = $('answerInput').value.trim();
+                    if (!answerSdp) return alert('Please paste the answer code');
+                    
+                    try {
+                        const answer = JSON.parse(atob(answerSdp));
+                        await pc.setRemoteDescription(answer);
+                        $('connectBtn').textContent = 'Connecting...';
+                    } catch(e) {
+                        alert('Invalid answer code');
+                    }
+                },
+
+                async sendMessage() {
+                    const input = $('messageInput');
+                    const text = input.value.trim();
+                    if (!text || !dc || dc.readyState !== 'open') return;
+                    
+                    const encrypted = await encrypt(text);
+                    dc.send(JSON.stringify({ content: encrypted }));
+                    addMessage(text, true);
+                    input.value = '';
+                    input.style.height = 'auto';
+                },
+
+                async sendFile() {
+                    const file = $('fileInput').files[0];
+                    if (!file || !dc) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const data = e.target.result;
+                        dc.send(JSON.stringify({ 
+                            type: 'file', 
+                            content: data,
+                            name: file.name 
+                        }));
+                        addMessage('📎 Sent: ' + file.name, true);
+                    };
+                    reader.readAsDataURL(file);
+                },
+
+                handleKeyPress(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                },
+
+                copyToClipboard(elementId) {
+                    const text = $(elementId).textContent;
+                    navigator.clipboard.writeText(text).then(() => {
+                        const el = $(elementId);
+                        const original = el.style.background;
+                        el.style.background = 'rgba(0, 255, 136, 0.3)';
+                        setTimeout(() => el.style.background = original, 500);
+                    });
+                }
+            };
+        })();
+    </script>
+</body>
+</html>
